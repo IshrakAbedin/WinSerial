@@ -5,7 +5,8 @@ namespace wsr
 
     SerialPort::SerialPort(const std::string &portName, BaudRate baudRate)
         : m_PortName(portName), m_BaudRate(baudRate), m_Connected(false), m_AsyncRunning(false)
-    { }
+    {
+    }
 
     SerialPort::~SerialPort()
     {
@@ -19,12 +20,12 @@ namespace wsr
             ClearBuffer();
             //Try to connect to the given port through CreateFile
             m_hSerial = CreateFile(("\\\\.\\" + m_PortName).c_str(),
-                                         GENERIC_READ | GENERIC_WRITE,
-                                         0,
-                                         NULL,
-                                         OPEN_EXISTING,
-                                         FILE_ATTRIBUTE_NORMAL,
-                                         NULL);
+                                   GENERIC_READ | GENERIC_WRITE,
+                                   0,
+                                   NULL,
+                                   OPEN_EXISTING,
+                                   FILE_ATTRIBUTE_NORMAL,
+                                   NULL);
 
             //Check if the connection was successfull
             if (m_hSerial == INVALID_HANDLE_VALUE)
@@ -144,14 +145,14 @@ namespace wsr
         static char readChar;
         static DWORD bytesRead;
 
-        while(true)
+        while (true)
         {
             ClearCommError(m_hSerial, &m_Errors, &m_Status);
             if (m_Status.cbInQue > 0)
             {
                 if (ReadFile(m_hSerial, &readChar, 1, &bytesRead, NULL))
                 {
-                    if(readChar == '\n') 
+                    if (readChar == '\n')
                     {
                         m_Buffer[m_BufferIndex] = 0;
                         return std::string(m_Buffer);
@@ -181,21 +182,16 @@ namespace wsr
             return true;
     }
 
-    bool SerialPort::IsConnected() const
+    void SerialPort::InitializeAsyncLineReading(rlcallback_t callback)
     {
-        //Simply return the connection status
-        return this->m_Connected;
-    }
-
-    void SerialPort::InitializeAsyncLineReading(std::function<void(const std::string&, std::string)> callback)
-    {
-        if(m_AsyncRunning)
+        if (m_AsyncRunning)
         {
             StopAsyncLineReading();
         }
         m_AsyncReadingCallback = callback;
         m_AsyncRunning = true;
-        m_SharedState = std::async(std::launch::async, [&](){ AsyncLineReadLoop(m_AsyncReadingCallback); });
+        m_SharedState = std::async(std::launch::async, [&]()
+                                   { AsyncLineReadLoop(m_AsyncReadingCallback); });
     }
 
     void SerialPort::StopAsyncLineReading()
@@ -204,9 +200,9 @@ namespace wsr
         m_SharedState.wait();
     }
 
-    void SerialPort::AsyncLineReadLoop(std::function<void(const std::string&, std::string)> callback)
+    void SerialPort::AsyncLineReadLoop(rlcallback_t callback)
     {
-        while(m_AsyncRunning)
+        while (m_AsyncRunning)
         {
             callback(m_PortName, ReadLine());
         }
