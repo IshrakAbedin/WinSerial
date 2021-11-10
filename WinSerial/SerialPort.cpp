@@ -4,7 +4,7 @@ namespace wsr
 {
 
     SerialPort::SerialPort(const std::string &portName, BaudRate baudRate)
-        : m_PortName(portName), m_BaudRate(baudRate), m_Connected(false)
+        : m_PortName(portName), m_BaudRate(baudRate), m_Connected(false), m_AsyncRunning(false)
     { }
 
     SerialPort::~SerialPort()
@@ -94,6 +94,7 @@ namespace wsr
     {
         if (m_Connected)
         {
+            StopAsyncLineReading();
             CloseHandle(m_hSerial);
             ClearBuffer();
             m_Connected = false;
@@ -184,6 +185,31 @@ namespace wsr
     {
         //Simply return the connection status
         return this->m_Connected;
+    }
+
+    void SerialPort::InitializeAsyncLineReading(std::function<void(const std::string&, std::string)> callback)
+    {
+        if(m_AsyncRunning)
+        {
+            StopAsyncLineReading();
+        }
+        m_AsyncReadingCallback = callback;
+        m_AsyncRunning = true;
+        m_SharedState = std::async(std::launch::async, [&](){ AsyncLineReadLoop(m_AsyncReadingCallback); });
+    }
+
+    void SerialPort::StopAsyncLineReading()
+    {
+        m_AsyncRunning = false;
+        m_SharedState.wait();
+    }
+
+    void SerialPort::AsyncLineReadLoop(std::function<void(const std::string&, std::string)> callback)
+    {
+        while(m_AsyncRunning)
+        {
+            callback(m_PortName, ReadLine());
+        }
     }
 
 }
