@@ -4,6 +4,8 @@
 
 #include <windows.h>
 #include <string>
+#include <functional>
+#include <future>
 
 #include "BaudRates.h"
 
@@ -23,7 +25,11 @@ namespace wsr
 
         static constexpr size_t BUFFERLEN = 4096;   // Buffer length
         char m_Buffer[BUFFERLEN];                   // Buffer for storing read data
-        size_t m_BufferIndex;
+        size_t m_BufferIndex;                       // Track of buffer position
+
+        bool m_AsyncRunning;
+        std::function<void(const std::string&, std::string)> m_AsyncReadingCallback;
+        std::future<void> m_SharedState;
 
     public:
         SerialPort() = delete;
@@ -47,8 +53,13 @@ namespace wsr
         bool WriteData (const std::string &buffer);
         bool IsConnected() const;
 
+        void InitializeAsyncLineReading(std::function<void(const std::string&, std::string)> callback);
+        void StopAsyncLineReading();
+        inline bool IsAsyncReadingRunning() const { return m_AsyncRunning; }
+
     private:
         inline void ClearBuffer() { m_BufferIndex = 0; m_Buffer[0] = 0; }
+        void AsyncLineReadLoop(std::function<void(const std::string&, std::string)> callback);
     };
 
 }
